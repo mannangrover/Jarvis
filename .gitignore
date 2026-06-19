@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.wav
+*.mp3
+
+# Environment
+.env
+
+# PlatformIO
+.pio/
+
+# Vosk model (too large for git — download separately)
+vosk-model-*/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
