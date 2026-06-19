@@ -9,7 +9,6 @@
 // ================================================
 // NETWORK — change SERVER_IP to your cloud URL later
 // ================================================
-// !! UPDATE THESE WITH YOUR WIFI CREDENTIALS !!
 const char* ssid     = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 

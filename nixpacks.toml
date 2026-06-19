@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = ["cd phase1_server && pip install -r requirements.txt"]
+
+[start]
+cmd = "cd phase1_server && python download_models.py && python jarvis_full.py"
