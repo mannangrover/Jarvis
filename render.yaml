@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: jarvis
+    runtime: python
+    buildCommand: "cd phase1_server && pip install -r requirements.txt && python download_models.py"
+    startCommand: "cd phase1_server && python jarvis_full.py"
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.11.9"
