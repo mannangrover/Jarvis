@@ -424,9 +424,15 @@ def audio():
         if state == IDLE and not is_speaking:
             with vosk_lock:
                 if recognizer.AcceptWaveform(raw_bytes):
-                    text = json.loads(recognizer.Result()).get("text", "")
+                    result = json.loads(recognizer.Result())
+                    text = result.get("text", "")
+                    print(f"[VOSK] full result: {result}")
                     if "jarvis" in text:
                         on_wake_word()
+                else:
+                    partial = json.loads(recognizer.PartialResult())
+                    if partial.get("partial", ""):
+                        print(f"[VOSK] partial: {partial}")
 
         return "OK", 200
 
