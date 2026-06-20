@@ -27,7 +27,7 @@ import soundfile as sf
 import miniaudio
 import edge_tts
 from playsound import playsound
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response as flask_make_response
 from vosk import Model, KaldiRecognizer
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -445,6 +445,68 @@ def audio():
 def set_eye(s: int):
     global current_eye
     current_eye = s
+
+
+@app.route("/sync", methods=["POST"])
+def sync():
+    """Combined endpoint: receive mic audio, return eye state + pending TTS audio.
+    Response: eye state as text (200) or PCM audio bytes with X-Eye header (200)."""
+    global chunk_count, last_rms, last_peak, command_buffer, state, silence_start, pending_audio
+
+    try:
+        raw_bytes   = request.data
+        audio_int16 = np.frombuffer(raw_bytes, dtype=np.int16)
+
+        if len(audio_int16) > 0:
+            chunk_count += 1
+            peak = int(np.max(np.abs(audio_int16)))
+            rms  = float(np.sqrt(np.mean(audio_int16.astype(np.float32) ** 2)))
+            last_peak = peak
+            last_rms  = rms
+
+            if chunk_count % 32 == 0:
+                health = "GOOD" if rms > 100 else "LOW" if rms > 10 else "SILENT"
+                print(f"[AUDIO] chunk={chunk_count:4d}  rms={rms:6.0f}  {health}  state={state}")
+
+            if state == RECORDING:
+                elapsed = time.time() - record_start
+                if elapsed > STARTUP_SKIP:
+                    command_buffer.extend(audio_int16.tolist())
+                    if rms < SILENCE_RMS:
+                        if silence_start == 0.0:
+                            silence_start = time.time()
+                        elif time.time() - silence_start >= SILENCE_SECONDS:
+                            _finish_recording()
+                    else:
+                        silence_start = 0.0
+                if elapsed >= RECORD_SECONDS:
+                    _finish_recording()
+
+            elif state == IDLE and not is_speaking:
+                with vosk_lock:
+                    if recognizer.AcceptWaveform(raw_bytes):
+                        result = json.loads(recognizer.Result())
+                        text = result.get("text", "")
+                        print(f"[VOSK] full result: {result}")
+                        if "jarvis" in text:
+                            on_wake_word()
+
+        # Return pending audio if available, otherwise just eye state
+        with audio_lock:
+            if len(pending_audio) > 0:
+                data = pending_audio
+                pending_audio = b""
+                resp = flask_make_response(data)
+                resp.headers["Content-Type"] = "application/octet-stream"
+                resp.headers["X-Eye"] = str(current_eye)
+                return resp
+
+        return str(current_eye), 200
+
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        return "ERROR", 500
 
 
 @app.route("/get_audio", methods=["GET"])
